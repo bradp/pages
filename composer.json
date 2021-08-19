@@ -1,0 +1,12 @@
+{
+	"name": "bradp/pages",
+	"type": "wordpress-plugin",
+	"description": "View your pages in the dashboard",
+	"license": "GPL-2.0-or-later",
+	"authors": [
+	  {
+		"name": "Brad Parbs",
+		"email": "brad@bradparbs.com"
+	  }
+	]
+}

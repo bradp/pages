@@ -26,6 +26,6 @@ Quickly and easily view all your recently modified pages in the dashboard.
 
 * Added more filters
 
-= 1.0.3 =
+= 1.0.0 =
 
 * Initial release

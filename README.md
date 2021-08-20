@@ -19,6 +19,6 @@ Quickly and easily view all your recently modified pages.
 
 * Added more filters
 
-### 1.0.3
+### 1.0.0
 
 * Initial release

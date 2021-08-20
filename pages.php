@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Pages
- * Description: Quickly and easily view your pages in the dashboard.
- * Version:     1.0.0
+ * Description: Quickly and easily view your recently modified pages in the dashboard.
+ * Version:     1.1.0
  * Author:      Brad Parbs
  * Author URI:  https://bradparbs.com/
  * License:     GPLv2
@@ -16,62 +16,79 @@ namespace Pages;
 
 use WP_Query;
 
-// Add new dashboard widget with list of draft posts.
-add_action(
-	'wp_dashboard_setup',
-	function () {
-		wp_add_dashboard_widget(
-			'pages',
-			sprintf(
-				'<span><span class="dashicons dashicons-admin-page" style="padding-right: 10px"></span>%s</span>',
-				esc_attr__( 'Recent Pages', 'pages' )
-			),
-			__NAMESPACE__ . '\\dashboard_widget'
-		);
-	}
-);
+add_action( 'wp_dashboard_setup', __NAMESPACE__ . '\\add_dashboard_widget' );
 
 /**
- * Add dashboard widget for draft posts.
+ * Add new dashboard widget with list of recently modified pages.
  */
-function dashboard_widget() {
-	$posts = new WP_Query(
-		[
-			'post_type'      => 'page',
-			'orderby'        => 'modified',
-			'post_status'    => 'publish',
-			'order'          => 'DESC',
-			'posts_per_page' => 25,
-			'no_found_rows'  => true,
-		]
+function add_dashboard_widget() {
+	$name = sprintf(
+		'<span><span class="dashicons %s" style="padding-right: 10px"></span>%s</span>',
+		apply_filters( 'pages_widget_icon', 'dashicons-admin-page' ),
+		apply_filters( 'pages_widget_title', esc_attr__( 'Recent Pages', 'pages' ) )
 	);
 
-	$pages = [];
+	wp_add_dashboard_widget( 'pages', $name, __NAMESPACE__ . '\\dashboard_widget' );
+}
 
-	if ( $posts->have_posts() ) {
-		while ( $posts->have_posts() ) {
-			$posts->the_post();
+/**
+ * Add dashboard widget for recently modified pages.
+ */
+function dashboard_widget() {
+	$query_args = apply_filters( 'pages_widget_query_args', [
+		'post_type'      => 'page',
+		'orderby'        => 'modified',
+		'post_status'    => 'publish',
+		'order'          => 'DESC',
+		'posts_per_page' => 25,
+		'no_found_rows'  => true,
+	] );
 
-			$pages[] = [
-				'ID'      => get_the_ID(),
-				'title'   => get_the_title(),
-				'date'    => gmdate( 'F j, g:ia', get_the_time( 'U' ) ),
-				'preview' => get_preview_post_link(),
-			];
-		}
-	}
+	$posts     = new WP_Query( $query_args );
+	$pages = get_pages_posts( $posts );
 
 	printf(
-		'<div id="pages-widget-wrapper">
-			<div id="pages-widget" class="activity-block" style="padding-top: 0;">
+		'<div id="pages-posts-widget-wrapper">
+			<div id="pages-posts-widget" class="activity-block" style="padding-top: 0;">
 				<ul>%s</ul>
 			</div>
 		</div>',
 		display_pages_in_widget( $pages ) // phpcs:ignore
 	);
 }
+
 /**
- * Display draft posts in widget.
+ * Get the pages to display in the dashboard widget.
+ *
+ * @param WP_Query $posts WP_Query object.
+ *
+ * @return array Array of pages.
+ */
+function get_pages_posts( $posts ) {
+	$pages = [];
+
+	if ( $posts->have_posts() ) {
+		while ( $posts->have_posts() ) {
+			$posts->the_post();
+
+			$add_to_pages = apply_filters( 'pages_show_in_widget', [
+				'ID'      => get_the_ID(),
+				'title'   => get_the_title(),
+				'date'    => gmdate( 'F j, g:ia', get_the_time( 'U' ) ),
+				'preview' => get_preview_post_link(),
+			] );
+
+			if ( isset( $add_to_pages ) ) {
+				$pages[] = $add_to_pages;
+			}
+		}
+	}
+
+	return $pages;
+}
+
+/**
+ * Display pages in widget.
  *
  * @param array $posts Post data.
  *

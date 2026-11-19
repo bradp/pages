@@ -1,13 +1,15 @@
 <?php
 /**
- * Plugin Name: Pages
- * Description: Quickly and easily view your recently modified pages in the dashboard.
- * Version:     1.1.0
- * Author:      Brad Parbs
- * Author URI:  https://bradparbs.com/
- * License:     GPLv2
- * Text Domain: pages
- * Domain Path: /lang/
+ * Plugin Name:       Pages
+ * Description:       Quickly and easily view your recently modified pages in the dashboard.
+ * Version:           1.1.1
+ * Requires at least: 6.0
+ * Requires PHP:      7.4
+ * Author:            Brad Parbs
+ * Author URI:        https://bradparbs.com/
+ * License:           GPLv2 or later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       pages
  *
  * @package pages
  */
@@ -15,6 +17,8 @@
 namespace Pages;
 
 use WP_Query;
+
+defined( 'ABSPATH' ) || exit;
 
 add_action( 'wp_dashboard_setup', __NAMESPACE__ . '\\add_dashboard_widget' );
 
@@ -24,28 +28,39 @@ add_action( 'wp_dashboard_setup', __NAMESPACE__ . '\\add_dashboard_widget' );
 function add_dashboard_widget() {
 	$name = sprintf(
 		'<span><span class="dashicons %s" style="padding-right: 10px"></span>%s</span>',
-		apply_filters( 'pages_widget_icon', 'dashicons-admin-page' ),
-		apply_filters( 'pages_widget_title', esc_attr__( 'Recent Pages', 'pages' ) )
+		esc_attr( apply_filters( 'pages_widget_icon', 'dashicons-admin-page' ) ),
+		apply_filters( 'pages_widget_title', esc_html__( 'Recent Pages', 'pages' ) )
 	);
 
 	wp_add_dashboard_widget( 'pages', $name, __NAMESPACE__ . '\\dashboard_widget' );
 }
 
 /**
+ * Get the post types to show in the widget.
+ *
+ * @return string|string[] Post type(s).
+ */
+function get_widget_post_types() {
+	return 'page';
+}
+
+/**
  * Add dashboard widget for recently modified pages.
  */
 function dashboard_widget() {
-	$query_args = apply_filters( 'pages_widget_query_args', [
-		'post_type'      => 'page',
-		'orderby'        => 'modified',
-		'post_status'    => 'publish',
-		'order'          => 'DESC',
-		'posts_per_page' => 25,
-		'no_found_rows'  => true,
-	] );
+	$query_args = apply_filters(
+		'pages_widget_query_args',
+		[
+			'post_type'      => get_widget_post_types(),
+			'post_status'    => 'publish',
+			'orderby'        => 'modified',
+			'order'          => 'DESC',
+			'posts_per_page' => 25,
+			'no_found_rows'  => true,
+		]
+	);
 
-	$posts     = new WP_Query( $query_args );
-	$pages = get_pages_posts( $posts );
+	$items = get_widget_items( new WP_Query( $query_args ) );
 
 	printf(
 		'<div id="pages-posts-widget-wrapper">
@@ -53,56 +68,57 @@ function dashboard_widget() {
 				<ul>%s</ul>
 			</div>
 		</div>',
-		display_pages_in_widget( $pages ) // phpcs:ignore
+		display_items_in_widget( $items ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Escaped in display_items_in_widget().
 	);
 }
 
 /**
- * Get the pages to display in the dashboard widget.
+ * Get the recently modified pages to display in the dashboard widget.
  *
- * @param WP_Query $posts WP_Query object.
+ * @param WP_Query $query WP_Query object.
  *
- * @return array Array of pages.
+ * @return array Array of recently modified pages.
  */
-function get_pages_posts( $posts ) {
-	$pages = [];
+function get_widget_items( $query ) {
+	$items = [];
 
-	if ( $posts->have_posts() ) {
-		while ( $posts->have_posts() ) {
-			$posts->the_post();
+	foreach ( $query->posts as $post ) {
+		$title = get_the_title( $post );
 
-			$add_to_pages = apply_filters( 'pages_show_in_widget', [
-				'ID'      => get_the_ID(),
-				'title'   => get_the_title(),
-				'date'    => gmdate( 'F j, g:ia', get_the_time( 'U' ) ),
-				'preview' => get_preview_post_link(),
-			] );
+		$item = apply_filters(
+			'pages_show_in_widget',
+			[
+				'ID'      => $post->ID,
+				'title'   => '' !== $title ? $title : __( '(no title)', 'pages' ),
+				'date'    => wp_date( 'F j, g:ia', get_post_timestamp( $post, 'modified' ) ),
+				'preview' => get_preview_post_link( $post ),
+			]
+		);
 
-			if ( isset( $add_to_pages ) ) {
-				$pages[] = $add_to_pages;
-			}
+		if ( ! empty( $item ) && is_array( $item ) ) {
+			$items[] = $item;
 		}
 	}
 
-	return $pages;
+	return $items;
 }
 
 /**
- * Display pages in widget.
+ * Display recently modified pages in widget.
  *
- * @param array $posts Post data.
+ * @param array $items Post data.
  *
- * @return string Output of post data.
+ * @return string Escaped output of post data.
  */
-function display_pages_in_widget( $posts ) {
+function display_items_in_widget( $items ) {
 	$output = '';
 
-	foreach ( $posts as $post ) {
+	foreach ( $items as $item ) {
 		$output .= sprintf(
 			'<li><em style="%4$s">%1$s</em> <a href="%2$s">%3$s</a></li>',
-			isset( $post['date'] ) ? $post['date'] : '',
-			isset( $post['preview'] ) ? $post['preview'] : '',
-			isset( $post['title'] ) ? $post['title'] : '',
+			esc_html( $item['date'] ?? '' ),
+			esc_url( $item['preview'] ?? '' ),
+			esc_html( $item['title'] ?? '' ),
 			'display: inline-block; margin-right: 5px; min-width: 125px; color: #646970;'
 		);
 	}

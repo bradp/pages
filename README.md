@@ -6,7 +6,7 @@ A WordPress plugin to quickly and easily view your recently modified pages.
 
 Quickly and easily view all your recently modified pages.
 
-## Availiable filters
+## Available filters
 
 `pages_widget_icon` - The dashicon to use for the dashboard widget.
 `pages_widget_title` - The title to use for the dashboard widget.
